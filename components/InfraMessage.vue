@@ -55,18 +55,34 @@
           <button
             v-for="option in message.decisionOptions"
             :key="option.id"
-            @click="handleDecision(option.id)"
+            @click.stop.prevent="handleDecision(option.id)"
             :disabled="message.executionStatus?.isRunning"
-            class="px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+            class="px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer"
             :class="getButtonClass(option.id)"
           >
             {{ option.label }}
           </button>
         </div>
+        
+        <!-- Debug info (remove in production) -->
+        <div v-if="!message.decisionOptions || message.decisionOptions.length === 0" class="mt-2 text-xs text-red-500">
+          Debug: No decision options found. Decision ID: {{ message.decisionId }}
+        </div>
       </div>
 
-      <!-- Regular Intent Display (after decision resolved) -->
-      <div v-else-if="message.parsedCommand" class="bg-white border border-gray-200 rounded-lg p-6">
+      <!-- Edit Mode with Parameter Editor (check this first before regular intent) -->
+      <div v-if="message.isEditMode && message.parsedCommand" class="bg-white border border-gray-200 rounded-lg p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">✏️ Edit Parameters</h2>
+        <ParameterEditor
+          :parameters="message.parsedCommand.parameters"
+          :intent-id="message.intentId || ''"
+          @save="handleSaveParams"
+          @cancel="handleCancelEdit"
+        />
+      </div>
+
+      <!-- Regular Intent Display (after decision resolved, but not in edit mode) -->
+      <div v-else-if="message.parsedCommand && !message.isEditMode" class="bg-white border border-gray-200 rounded-lg p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">✅ Intent parsed.</h2>
 
         <!-- Action Details -->
@@ -133,6 +149,14 @@
         <p class="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-800">
           {{ message.content }}
         </p>
+        
+        <!-- Raw Code/Result Display -->
+        <div v-if="message.rawContent" class="mt-4 border-t border-gray-200 pt-4">
+          <details class="cursor-pointer">
+            <summary class="text-sm font-medium text-gray-700 mb-2">Raw code</summary>
+            <pre class="mt-2 p-3 bg-gray-50 rounded text-xs overflow-x-auto text-gray-800">{{ message.rawContent }}</pre>
+          </details>
+        </div>
       </div>
     </div>
   </div>
@@ -140,6 +164,7 @@
 
 <script setup lang="ts">
 import type { Message } from '~/composables/useChat'
+import ParameterEditor from './ParameterEditor.vue'
 
 interface Props {
   message: Message
@@ -149,6 +174,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   execute: [messageId: string]
   resolveDecision: [decisionId: string, optionId: string]
+  saveParams: [intentId: string, params: Record<string, any>]
+  cancelEdit: [messageId: string]
 }>()
 
 const getButtonClass = (optionId: string) => {
@@ -165,12 +192,28 @@ const getButtonClass = (optionId: string) => {
 }
 
 const handleDecision = (optionId: string) => {
-  if (props.message.decisionId) {
-    emit('resolveDecision', props.message.decisionId, optionId)
+  const decisionId = props.message.decisionId
+  console.log('Button clicked:', optionId, 'Decision ID:', decisionId)
+  
+  if (!decisionId) {
+    console.error('No decision ID found in message')
+    return
   }
+  
+  // Ensure we're passing the correct values
+  console.log('Emitting resolveDecision with:', { decisionId, optionId })
+  emit('resolveDecision', decisionId, optionId)
   
   if (optionId === 'run') {
     emit('execute', props.message.id)
   }
+}
+
+const handleSaveParams = (params: Record<string, any>) => {
+  emit('saveParams', props.message.intentId, params)
+}
+
+const handleCancelEdit = () => {
+  emit('cancelEdit', props.message.id)
 }
 </script>

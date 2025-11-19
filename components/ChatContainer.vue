@@ -23,6 +23,8 @@
         :is-loading="isLoading"
         @execute="executeCommand"
         @resolve-decision="handleResolveDecision"
+        @save-params="handleSaveParams"
+        @cancel-edit="handleCancelEdit"
       />
 
       <!-- Input Area -->
@@ -32,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-const { messages, isLoading, sendMessage, executeCommand, resolveDecision, clearChat } = useChat()
+const { messages, isLoading, sendMessage, executeCommand, resolveDecision, sendParamUpdate, clearChat } = useChat()
 const chatInputRef = ref()
 
 const handleExample = (example: string) => {
@@ -42,6 +44,27 @@ const handleExample = (example: string) => {
 }
 
 const handleResolveDecision = (decisionId: string, optionId: string) => {
+  console.log('ChatContainer: handleResolveDecision called with:', { decisionId, optionId })
+  if (!decisionId || decisionId.length < 10) {
+    console.error('Invalid decision ID received:', decisionId)
+    return
+  }
   resolveDecision(decisionId, optionId)
+}
+
+const handleSaveParams = (intentId: string, params: Record<string, any>) => {
+  sendParamUpdate(intentId, params)
+  // Remove edit mode from message
+  const message = messages.value.find(m => m.intentId === intentId)
+  if (message) {
+    message.isEditMode = false
+  }
+}
+
+const handleCancelEdit = (messageId: string) => {
+  const message = messages.value.find(m => m.id === messageId)
+  if (message) {
+    message.isEditMode = false
+  }
 }
 </script>

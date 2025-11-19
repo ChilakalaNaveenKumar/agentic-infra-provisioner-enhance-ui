@@ -30,10 +30,12 @@
 
         <!-- Assistant Message with Parsed Command or Decision -->
         <InfraMessage
-          v-else-if="message.parsedCommand || message.isDecision"
+          v-else-if="message.parsedCommand || message.isDecision || message.isEditMode"
           :message="message"
           @execute="$emit('execute', $event)"
-          @resolve-decision="$emit('resolveDecision', $event[0], $event[1])"
+          @resolve-decision="(decisionId, optionId) => $emit('resolveDecision', decisionId, optionId)"
+          @save-params="(intentId, params) => $emit('saveParams', intentId, params)"
+          @cancel-edit="$emit('cancelEdit', $event)"
         />
 
         <!-- Regular Assistant Message -->
@@ -80,6 +82,8 @@ const props = defineProps<Props>()
 defineEmits<{
   execute: [messageId: string]
   resolveDecision: [decisionId: string, optionId: string]
+  saveParams: [intentId: string, params: Record<string, any>]
+  cancelEdit: [messageId: string]
 }>()
 
 const messagesContainer = ref<HTMLElement>()
